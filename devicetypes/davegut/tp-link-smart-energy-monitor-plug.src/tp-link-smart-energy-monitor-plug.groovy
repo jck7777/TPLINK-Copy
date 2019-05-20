@@ -19,7 +19,7 @@ All  development is based upon open-source data on the TP-Link devices; primaril
 					Updated Service Manager to Device communications.
 03.11.19	4.0.02	Update to resolve issues.
 ======== DO NOT EDIT LINES BELOW ===========================*/
-	def devVer()	{ return "4.0.02" }
+	def devVer()	{ return "4.0.01 TEST CODE" }
 metadata {
 	definition (name: "TP-Link Smart Energy Monitor Plug",
 				namespace: "davegut",
@@ -136,6 +136,7 @@ def updated() {
     if (gateway_IP) { updateDataValue("gatewayIP", gateway_IP) }
 	sendEvent(name: "DeviceWatch-Enroll", value: groovy.json.JsonOutput.toJson(["protocol":"cloud", "scheme":"untracked"]), displayed: false)
     if (getDataValue("installType") == "Manual") { updateDataValue("deviceDriverVersion", devVer())  }
+log.debug "${deviceLabel} ${devVer()} updated: Scheduling EM tasks ans setting current date"
 	schedule("0 05 0 * * ?", setCurrentDate)
 	schedule("0 10 0 * * ?", getEnergyStats)
 	setCurrentDate()
@@ -161,6 +162,7 @@ def getSystemInfo() {
 
 def refresh(){
 	sendCmdtoServer('{"system":{"get_sysinfo":{}}}', "deviceCommand", "refreshResponse")
+log.debug "${deviceLabel} ${devVer()} refresh: get current power and today's consumption"
 	runIn(2, getPower)
     runIn(7, getConsumption)
 }
@@ -184,6 +186,7 @@ def getPower(){
 }
 
 def energyMeterResponse(cmdResponse) {
+log.debug "${deviceLabel} ${devVer()} energyMeterResponse: cmdResponse = ${cmdResponse}"
 	def realtime = cmdResponse["emeter"]["get_realtime"]
 	if (realtime.power == null) {
 		state.powerScale = "power_mw"
@@ -208,6 +211,7 @@ def getConsumption(){
 }
 
 def useTodayResponse(cmdResponse) {
+log.debug "${deviceLabel} ${devVer()} useTodayResponse: cmdResponse = ${cmdResponse}"
 	def wattHrToday
 	def wattHrData
 	def dayList = cmdResponse["emeter"]["get_daystat"].day_list
@@ -226,6 +230,7 @@ def useTodayResponse(cmdResponse) {
 
 //	===== Get Weekly and Monthly Stats =====
 def getEnergyStats() {
+log.debug "${deviceLabel} ${devVer()} getEnergyStats"
 	state.monTotEnergy = 0
 	state.monTotDays = 0
 	state.wkTotEnergy = 0
@@ -235,6 +240,7 @@ def getEnergyStats() {
 }
 
 def getPrevMonth() {
+log.debug "${deviceLabel} ${devVer()} getPrevMonth"
 	def prevMonth = state.monthStart
 	if (state.monthToday == state.monthStart) {
 		//	If all of the data is in this month, do not request previous month.
@@ -251,12 +257,14 @@ def getPrevMonth() {
 }
 
 def getJan() {
+log.debug "${deviceLabel} ${devVer()} getJan"
 //	Gets January data on March 1 and 2.  Only access if current month = 3
 //	and start month = 1
 	sendCmdtoServer("""{"emeter":{"get_daystat":{"month": ${state.monthStart}, "year": ${state.yearStart}}}}""", "emeterCmd", "engrStatsResponse")
 }
 
 def engrStatsResponse(cmdResponse) {
+log.debug "${deviceLabel} ${devVer()} engrStatsResponse: cmdResponse = ${cmdResponse}"
 	def dayList = cmdResponse["emeter"]["get_daystat"].day_list
 	if (!dayList[0]) {
 		log.info "${device.label}: Month has no energy data."
@@ -350,10 +358,12 @@ def engrStatsResponse(cmdResponse) {
 
 //	===== Obtain Week and Month Data =====
 def setCurrentDate() {
+log.debug "${deviceLabel} ${devVer()} setCurrentDate"
 	sendCmdtoServer('{"time":{"get_time":null}}', "deviceCommand", "currentDateResponse")
 }
 
 def currentDateResponse(cmdResponse) {
+log.debug "${deviceLabel} ${devVer()} currentDateResponse: cmdResponse = ${cmdResponse}"
 	def currDate =  cmdResponse["time"]["get_time"]
 	state.dayToday = currDate.mday.toInteger()
 	state.monthToday = currDate.month.toInteger()
